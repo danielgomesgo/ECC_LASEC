@@ -1,3 +1,4 @@
+
 /*
  *  Example ECDHE with Curve25519 program
  *
@@ -20,15 +21,15 @@
  */
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/platform.h"
+#include "mbedtls/platform.h"
 #else
-#include <stdio.h>
+#include <mbedtls/stdio.h>
 #define mbedtls_printf     printf
 #endif
 
@@ -45,30 +46,39 @@ int main( void )
 }
 #else
 
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/entropy.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/ctr_drbg.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/ecdh.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/net_sockets.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/sha1.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/ecdh.h"
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/sha1.h"
+
+#include "time.h"
 
 #define SERVER_NAME "localhost"
-#define SERVER_PORT "11999"
+#define SERVER_PORT "5000"
 
 int main( void )
-{
+{ 
     int ret;
     mbedtls_ecdh_context ctx_cli;
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
     mbedtls_net_context server_fd;
-    // mbedtls_aes_context aes;
+    mbedtls_aes_context aes;
+
     unsigned char cli_to_srv[32], srv_to_cli[32];
     const char pers[] = "ecdh";
    
     mbedtls_net_init( &server_fd );
     mbedtls_ecdh_init( &ctx_cli );
     mbedtls_ctr_drbg_init( &ctr_drbg );
+    unsigned char mensagem[64] = "";
+    unsigned char mensagem2[64] = "";
+    mbedtls_aes_init( &aes );
+    mbedtls_aes_free( &aes );
+    
 
+    
     /*
      * Initialize random number generation
      */
@@ -191,10 +201,28 @@ int main( void )
 
     mbedtls_printf( " ok\n" );
 
-   /*
-    * Start encryption
-    */
+    
+    
+    mbedtls_printf("  . s: %d \n  . n: %lu \n  . *p: %lu%lu \n", ctx_cli.z.s, ctx_cli.z.n, *ctx_cli.z.p, *(ctx_cli.z.p+sizeof(uint64_t)));
+    mbedtls_printf("  . sizeof *p: %lu \n", sizeof(mbedtls_mpi_uint));
 
+    mbedtls_printf("%lu \n\n", *ctx_cli.z.p);
+    unsigned char chave[21];
+    sprintf(chave, "%lu", *ctx_cli.z.p);
+    mbedtls_printf("%s\n\n", chave);
+
+    mbedtls_aes_setkey_enc( &aes, chave, 128);
+    mbedtls_aes_setkey_dec( &aes, chave, 128);
+
+    
+
+    mbedtls_printf("  . Recebendo mensagem...\n");
+    mbedtls_net_recv(&server_fd, mensagem, sizeof(mensagem));
+    mbedtls_printf("  . Mensagem recebida: %s \n", mensagem);
+
+    mbedtls_aes_decrypt( &aes, mensagem, mensagem2);
+    mbedtls_printf("  . Mensagem decifrada: %s  \n", mensagem2);
+    
 
 exit:
 

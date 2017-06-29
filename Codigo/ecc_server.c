@@ -20,15 +20,15 @@
  */
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/platform.h"
+#include "mbedtls/platform.h"
 #else
-#include <stdio.h>
+#include <mbedtls/stdio.h>
 #define mbedtls_printf     printf
 #endif
 
@@ -45,18 +45,23 @@ int main( void )
 }
 #else
 
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/entropy.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/ctr_drbg.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/mbedtls/ecdh.h"
-#include "/home/daniel/LASEC/2017-1/mbedtls-2.4.2/include/ 	mbedtls/net_sockets.h"
-// #include "mbedtls/aes.h"
-// #include "mbedtls/sha1.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/ecdh.h"
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/platform_time.h"
+#include "mbedtls/aes.h"
+#include "mbedtls/sha1.h"
+#include "time.h"
 
-#define SERVER_PORT "11999"
+#define SERVER_PORT "5000"
 #define PLAINTEXT "==Hello there!=="
 
 int main( void )
 {
+	int i = 0;
+	
+
     int ret;
     mbedtls_net_context listen_fd, client_fd;
 
@@ -64,18 +69,23 @@ int main( void )
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
     mbedtls_aes_context aes;
+
     unsigned char cli_to_srv[32], srv_to_cli[32];
     const char pers[] = "ecdh";
+    unsigned char mensagem[64] = "Texto para envio";
+    unsigned char mensagem2[64] = "";
+    unsigned char mensagem3[64] = "";
 
     mbedtls_net_init( &listen_fd );
     mbedtls_net_init( &client_fd );
     mbedtls_ecdh_init( &ctx_srv );
     mbedtls_ctr_drbg_init( &ctr_drbg );
-    // mbedtls_aes_init( &aes );
-
+    mbedtls_aes_init( &aes );
+    mbedtls_aes_free( &aes );
     /*
      * Initialize random number generation
-     */
+     */ 
+
     mbedtls_printf( "  . Seeding the random number generator..." );
     fflush( stdout );
 
@@ -198,11 +208,37 @@ int main( void )
     mbedtls_printf( " ok\n" );
 
 
+    mbedtls_printf("  . s: %d \n  . n: %lu \n  . *p: %lu%lu \n\n", ctx_srv.z.s, ctx_srv.z.n, *ctx_srv.z.p, *(ctx_srv.z.p+sizeof(uint64_t)));
+
     /*
-    * Start encryption
+    mbedtls_printf("%lu \n\n", *ctx_srv.z.p);
     */
+    unsigned char chave[21];
+	sprintf(chave, "%lu", *ctx_srv.z.p);
+    mbedtls_printf("%s\n\n", chave);   
+	
 
+	/*
+    Iniciando Criptografia
+    */
+	mbedtls_aes_setkey_enc( &aes, chave, 128);
 
+	mbedtls_printf("  . Mensagem: %s\n", mensagem);
+	ret = mbedtls_aes_crypt_ecb( &aes, MBEDTLS_AES_ENCRYPT, mensagem, mensagem2);
+	mbedtls_printf("  . Resultado: %d \n\n", ret);
+	mbedtls_printf("  . Mensagem cifrada: %s  \n\n\n", mensagem2);
+
+	mbedtls_printf("  . Enviando mensagem cifrada\n");
+	
+	mbedtls_net_send(&client_fd, mensagem2, sizeof(mensagem2));
+
+	mbedtls_aes_setkey_dec( &aes, chave, 128);
+		
+
+    //ret = mbedtls_aes_crypt_ecb( &aes, MBEDTLS_AES_DECRYPT, mensagem2, mensagem3);
+    //mbedtls_printf("  . Resultado: %d \n\n", ret);
+    //mbedtls_printf("  . Mensagem decifrada: %s  \n", mensagem3);
+     
 exit:
 
 #if defined(_WIN32)
